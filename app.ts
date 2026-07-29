@@ -103,7 +103,7 @@ program
       return;
     }
     delete tasks[id];
-    writeTasks(tasks);
+    await writeTasks(tasks);
     console.log(`Completing task: ${id}`);
   });
 
@@ -118,7 +118,7 @@ program
       return;
     }
     tasks[id].completed = true;
-    writeTasks(tasks);
+    await writeTasks(tasks);
     console.log(`Completing task: ${id}`);
   });
 
@@ -133,7 +133,7 @@ program
       return;
     }
     tasks[id].completed = false;
-    writeTasks(tasks);
+    await writeTasks(tasks);
     console.log(`Completing task: ${id}`);
   });
 
