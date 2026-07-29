@@ -1,4 +1,4 @@
-import fs from "fs";
+import fs from "fs/promises";
 import path from "path";
 import { Command } from "commander";
 
@@ -14,24 +14,25 @@ type TaskMap = Record<string, Task>;
 
 const filePath = path.join(__dirname, "task.json");
 
-function readTasks(): TaskMap {
-  if (!fs.existsSync(filePath)) {
-    return {};
-  }
+async function readTasks(): Promise<TaskMap> {
   try {
-    const data = fs.readFileSync(filePath, "utf8").trim();
-    return data ? JSON.parse(data) : {};
+    await fs.access(filePath);
+
+    const data = await fs.readFile(filePath, "utf8");
+    const trimmed = data.trim();
+
+    return trimmed ? JSON.parse(trimmed) : {};
   } catch {
     return {};
   }
 }
 
-function writeTasks(tasks: TaskMap): void {
-  fs.writeFileSync(filePath, JSON.stringify(tasks, null, 2));
+async function writeTasks(tasks: TaskMap): Promise<void> {
+  await fs.writeFile(filePath, JSON.stringify(tasks, null, 2), "utf8");
 }
 
-function addTask(title: string) {
-  const tasks = readTasks();
+async function addTask(title: string) {
+  const tasks = await readTasks();
 
   const ids = Object.keys(tasks).map(Number);
   const maxId = ids.length > 0 ? Math.max(...ids) : 0;
@@ -46,25 +47,27 @@ function addTask(title: string) {
   };
 
   tasks[newID] = newTask;
-  writeTasks(tasks);
+  await writeTasks(tasks);
 
   console.log(`Task added successfully (ID: ${newID})`);
 }
 
-function listTasks(id: string) {
-  const tasks = readTasks();
+async function listTasks(id: string) {
+  const tasks = await readTasks();
   if (id && tasks[id]) {
-    console.log(
-      `ID: ${tasks[id].id}, Title: ${tasks[id].name}, Completed: ${tasks[id].completed}`,
-    );
+    const task = tasks[id];
+    const status = task.completed ? "[✓]" : "[ ]";
+    // Formats timestamp nicely or takes the ISO date portion
+    const date = task.createdAt.split("T")[0];
+    console.log(`${status} #${task.id} - ${task.name} (Created: ${date})`);
     return;
   }
 
   console.log("Tasks:");
   Object.values(tasks).forEach((task) => {
-    console.log(
-      `ID: ${task.id}, Title: ${task.name}, Completed: ${task.completed}`,
-    );
+    const status = task.completed ? "[✓]" : "[ ]";
+    const date = task.createdAt.split("T")[0];
+    console.log(`${status} #${task.id} - ${task.name} (Created: ${date})`);
   });
 }
 
@@ -76,25 +79,25 @@ program
   .command("add")
   .description("Add a new task")
   .argument("<title>", "Title of the task")
-  .action((title) => {
+  .action(async (title) => {
     console.log(`Adding task: ${title}`);
-    addTask(title);
+    await addTask(title);
   });
 
 program
   .command("list")
   .description("Displays all tasks")
   .argument("[id]", "ID of the task to list")
-  .action((id) => {
-    listTasks(id);
+  .action(async (id) => {
+    await listTasks(id);
   });
 
 program
   .command("delete")
   .description("Deletes a task")
   .argument("<id>", "ID of the task to delete")
-  .action((id) => {
-    const tasks = readTasks();
+  .action(async (id) => {
+    const tasks = await readTasks();
     if (!tasks[id]) {
       console.error(`Task with ID ${id} not found`);
       return;
@@ -105,11 +108,11 @@ program
   });
 
 program
-  .command("complete")
+  .command("done")
   .description("Completes a task")
   .argument("<id>", "ID of the task to complete")
-  .action((id) => {
-    const tasks = readTasks();
+  .action(async (id) => {
+    const tasks = await readTasks();
     if (!tasks[id]) {
       console.error(`Task with ID ${id} not found`);
       return;
@@ -123,8 +126,8 @@ program
   .command("uncomplete")
   .description("Uncompletes a task")
   .argument("<id>", "ID of the task to uncomplete")
-  .action((id) => {
-    const tasks = readTasks();
+  .action(async (id) => {
+    const tasks = await readTasks();
     if (!tasks[id]) {
       console.error(`Task with ID ${id} not found`);
       return;
@@ -135,5 +138,3 @@ program
   });
 
 program.parse(process.argv);
-
-const options = program.opts();
